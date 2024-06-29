@@ -1,9 +1,9 @@
-import { EthereumHeader, decodeBlock, EthereumTransaction, CONTRACT_CREATION, EthereumBlock } from '@rainblock/ethereum-block'
+import { EthereumHeader, decodeBlock, EthereumTransaction, CONTRACT_CREATION, EthereumBlock } from '@rainblock/ethereum-block';
 import { ConfigurationFile } from './configFile';
-import { encodeBlock, encodeHeaderAsRLP } from '@rainblock/ethereum-block'
+import { encodeBlock, encodeHeaderAsRLP } from '@rainblock/ethereum-block';
 import { RlpList, RlpEncode, RlpDecode } from 'rlp-stream/build/src/rlp-stream';
 import { EthereumAccount, EthereumAccountFromBuffer } from './ethereumAccount';
-import { VerifierStorageClient, UpdateMsg, grpc, UpdateOp, StorageUpdate, TransactionReply, ErrorCode} from '@rainblock/protocol'
+import { VerifierStorageClient, UpdateMsg, grpc, UpdateOp, StorageUpdate, TransactionReply, ErrorCode} from '@rainblock/protocol';
 import { MerklePatriciaTree, CachedMerklePatriciaTree, MerklePatriciaTreeOptions, MerklePatriciaTreeNode, MerkleKeyNotFoundError, BatchPut } from '@rainblock/merkle-patricia-tree';
 import { GethStateDump, GethStateDumpAccount, ImportGethDump } from './gethImport';
 
@@ -19,9 +19,9 @@ const MAX_256_UNSIGNED = 1157920892373161954235709850086879078532699846656405640
 
 export interface BlockGeneratorOptions {
     /** The configuration from the configuration file */
-    config: ConfigurationFile
+    config: ConfigurationFile;
     /** The configuratino file directory */
-    configDir : string
+    configDir : string;
 }
 
 /** Transaction data for processing the transaction and including it in the block. */
@@ -63,7 +63,7 @@ interface ExecutionResult {
     /** The timestamp selected for this transaction. */
     timestamp: bigint;
     /** The ordering of transactions in this execution. */
-    order : TransactionData[]
+    order : TransactionData[];
     /** The number of nanoseconds it took to order and execute the transactions. */
     executionTime: bigint;
     /** The write set, keyed by address */
@@ -98,8 +98,10 @@ export class BlockGenerator {
     private txQueue : TransactionData[] = [];
     private neighborBlock? : EthereumBlock;
 
+    private validators : any = [1]
+
     constructor(private logger: Logger, public options : BlockGeneratorOptions, public networkLearner: NetworkLearner,
-         public running: boolean = true) {
+         public running = true) {
         this.blockNumber = 0n;
         this.parentHash = 0n;
         this.difficulty = 0n;
@@ -130,8 +132,12 @@ export class BlockGenerator {
         this.txQueue.push(data);
     }
 
-    /** 'Simulate' solving the proof of work puzzle. We'll solve it by delaying its execution */
-    solveProofOfWork(executionResult: ExecutionResult, transactionsRoot: bigint) : Promise<EthereumHeader> {
+    /**
+     * In PoS, anybody can become a validator by paying a fee
+     * 
+     * @returns {Array} node with reduced balance
+     */
+    generateProofOfStake(executionResult: ExecutionResult, transactionsRoot: bigint) : Promise<EthereumHeader> {
         return new Promise((resolve, reject) => {
             setTimeout(() => resolve({
                 parentHash: this.parentHash,
@@ -149,15 +155,14 @@ export class BlockGenerator {
                 mixHash: 0n, // TODO: generate a valid mixHash
                 nonce: 0n, // TODO: pick a valid nonce
                 blockNumber: this.blockNumber
-                // Number between powMax and powMin
-            }),  Math.floor(Math.random()*(this.options.config.powMax!-this.options.config.powMin!+1)+this.options.config.powMin!));
+            }), 100);
         });
     }
 
     getAccount(writeSet: Map<bigint, WriteSetChanges>, unhashed: bigint, hashedAddress: Buffer, nodeBag: Map<bigint,MerklePatriciaTreeNode<EthereumAccount>>, nodesUsed: Set<bigint>,
         generate = false, generateNonce = 0n) : EthereumAccount {
             // First, check if we have it in our optimistic change set
-            let optimisticData = writeSet.get(unhashed);
+            const optimisticData = writeSet.get(unhashed);
             if (optimisticData !== undefined) {
                 return optimisticData.account;
             }
@@ -186,13 +191,13 @@ export class BlockGenerator {
             account,
             nonce: account.nonce,
             balance: account.balance
-        })
+        });
     }
 
     /** Generates a new copy-on-write merkle tree based on the write set */
     generateCopyOnWriteTree(writeSet: Map<bigint, WriteSetChanges>, usedNodes: Set<bigint>, nodeBag: Map<bigint, MerklePatriciaTreeNode<EthereumAccount>>) {
         
-        const puts : BatchPut<Buffer, EthereumAccount>[] = [];
+        const puts : Array<BatchPut<Buffer, EthereumAccount>> = [];
 
         for (const [address, data] of writeSet.entries()) {
             puts.push({
@@ -212,7 +217,7 @@ export class BlockGenerator {
         const nodesUsed = new Set<bigint>();
 
         const start = process.hrtime.bigint();
-        let gasUsed = 0n;
+        const gasUsed = 0n;
         for (const tx of transactions) {
             this.logger.debug(`Processing tx ${tx.txHash.toString(16)}`);
 
@@ -234,7 +239,7 @@ export class BlockGenerator {
                 // First, verify that the FROM account can be found and the
                 // nonce in the transaction is one greater than the account
                 // nonce.
-                let fromAccount = this.getAccount(writeSet, tx.tx.from, tx.fromHash, proofs, nodesUsed, this.options.config.generateFromAccounts, tx.tx.nonce);
+                const fromAccount = this.getAccount(writeSet, tx.tx.from, tx.fromHash, proofs, nodesUsed, this.options.config.generateFromAccounts, tx.tx.nonce);
 
                 if (!this.options.config.disableNonceCheck && tx.tx.nonce !== fromAccount.nonce) {
                     throw new Error(`From account ${tx.tx.from.toString(16)} had incorrect nonce ${fromAccount.nonce}, expected ${tx.tx.nonce}`);
@@ -313,14 +318,14 @@ export class BlockGenerator {
         }
 
         return {
-            stateRoot: stateRoot,
-            gasUsed: gasUsed,
+            stateRoot,
+            gasUsed,
             timestamp: BigInt(Date.now()),
             order,
             writeSet,
             newTree,
             executionTime: process.hrtime.bigint() - start
-        }
+        };
     }
 
     /** Calculate the transactions root based on the ordering given. */
@@ -394,7 +399,7 @@ export class BlockGenerator {
         // make sure the parent matches our parent
         if (b.header.parentHash !== this.parentHash) {
             const blockhash = hashAsBigInt(HashType.KECCAK256, RlpEncode(encodeHeaderAsRLP(b.header)));
-            this.logger.error(`Got block from neighbor with parent hash which was incorrect ${blockhash.toString(16)}`)
+            this.logger.error(`Got block from neighbor with parent hash which was incorrect ${blockhash.toString(16)}`);
         } else {
             this.blockResolver(b);
         }
@@ -414,13 +419,13 @@ export class BlockGenerator {
             await new Promise((resolve, reject) => {
                 this.verifiers[i].waitForReady(Date.now() + this.options.config.rpc.storageTimeout, (error=> {
                 if (error) {
-                    this.logger.warn(`Shard ${i} connection failed: storage node at ${storageNodeAddress}: ${error}`)
-                    reject(new Error(`Failed to connect to shard ${i} at ${storageNodeAddress}`))
+                    this.logger.warn(`Shard ${i} connection failed: storage node at ${storageNodeAddress}: ${error}`);
+                    reject(new Error(`Failed to connect to shard ${i} at ${storageNodeAddress}`));
                 } else {
                     this.logger.info(`Shard ${i} connected to storage node at ${storageNodeAddress}`);
                     resolve();
                 }
-            }))
+            }));
             });
         }
     }
@@ -442,7 +447,7 @@ export class BlockGenerator {
         this.tree.pruneStateCache();
 
         if (this.tree.rootHash != genesisBlock.header.stateRoot) {
-            throw new Error(`Genesis root from block (${genesisBlock.header.stateRoot.toString(16)}) does not match imported root ${this.tree.rootHash.toString(16)}`)
+            throw new Error(`Genesis root from block (${genesisBlock.header.stateRoot.toString(16)}) does not match imported root ${this.tree.rootHash.toString(16)}`);
         }
 
         this.logger.info(`Initialized state to stateRoot ${this.tree.rootHash.toString(16)}`);
@@ -468,7 +473,7 @@ export class BlockGenerator {
             this.blockResolver = (b: EthereumBlock) => {
                 this.neighborBlock = b;
                 resolve;
-            }
+            };
         });
     }
     
@@ -500,7 +505,7 @@ export class BlockGenerator {
                 tx,
                 callback: () => {}
             };
-        })
+        });
         const newResult = await this.orderAndExecuteTransactions(txdata, true);
         this.tree = newResult.newTree;
         const blockhash = hashAsBigInt(HashType.KECCAK256, RlpEncode(encodeHeaderAsRLP(alt.header)));
@@ -518,7 +523,7 @@ export class BlockGenerator {
         while (this.running) {
             if (this.learnedBlocks.has(this.blockNumber))
             { 
-                let blockNumber = this.blockNumber;
+                const blockNumber = this.blockNumber;
                 // We already have this block. Process it
                 await this.adoptAlternativeBlock(this.learnedBlocks.get(this.blockNumber)!);
                 // Remove it from the list
@@ -539,21 +544,22 @@ export class BlockGenerator {
                 // Calculate the transactionsRoot
                 const transactionsRoot = await this.calculateTransactionsRoot(executionResult.order);
 
-                // Simulate solving the proof of work algorithm.
-                const headerPromise = this.solveProofOfWork(executionResult, transactionsRoot);
+                // Simulate generating block using proof of stake
+                const headerPromise = this.generateProofOfStake(executionResult, transactionsRoot);
+                
                 // Simultaneously report success/failure to clients
                 const replyPromise = this.replyToClients(blockTransactions);
 
 
-                // Wait for either PoW to be solved or a neighbor to get us a block.
+                // Wait for either PoS to be solved or a neighbor to get us a block.
                 const race = await Promise.race([headerPromise, resolverPromise]);
                 
                 // TODO: use a better property to determine promise completion
                 if (!(this.neighborBlock !== undefined && this.neighborBlock.header.blockNumber === this.blockNumber) && (race as EthereumHeader).blockNumber !== undefined) {
                     // We successfully mined a block, adopt it
                     const header = race as EthereumHeader;
-                    this.logger.info(`PoW solution found, proposing new block ${this.blockNumber.toString()}`);
-                    let learned = this.learnedNodes;
+                    this.logger.info(`Block mined by validator -- ${this.validators[0]} , proposing new block ${this.blockNumber.toString()}`);
+                    const learned = this.learnedNodes;
                     this.learnedNodes = new Map();
                     this.lastLearnedNodes.clear();
                     this.lastLearnedNodes = learned;

@@ -25,5 +25,5 @@ export function waitForRpc<R,S>(client : grpc.Client, rpc : (request: R, callbac
 export function delay(ms : number) : Promise<void> {
     return new Promise((resolve, reject) => {
         setTimeout(() => resolve(), ms);
-    })
+    });
 }

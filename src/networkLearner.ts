@@ -21,7 +21,7 @@ export class NetworkLearner {
     connectedSet = new Set<string>();
     neighbors = new Map<bigint, NeighborData>();
 
-    running : boolean  = false;
+    running  = false;
 
     // For now, we'll just send updates to each hop
     constructor(public log : Logger, public config : ConfigurationFile) {
@@ -79,7 +79,7 @@ export class NetworkLearner {
                         if (hexBeneficiary === this.config.beneficiary) {
                             throw new Error(`Attempted to connect to self at ${address}`);
                         }
-                        this.log.debug(`Connected to verifier at ${address}, version=${resp.getVersion()} beneficiary=${hexBeneficiary}`)
+                        this.log.debug(`Connected to verifier at ${address}, version=${resp.getVersion()} beneficiary=${hexBeneficiary}`);
                         
                         this.connectedSet.add(address);
 

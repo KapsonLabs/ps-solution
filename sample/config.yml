@@ -41,8 +41,8 @@ rpc:
   rescanInterval : 5000
 beneficiary: 'ea674fdde714fd979de3edf0f56aa9716b898ec8'
 blockReward: 50000
-genesisBlock: 'genesis.bin'
-genesisData: 'genesis.json'
+genesisBlock: 'simple.bin'
+genesisData: 'simple.json'
 # Required for parallel client submissions, since
 # the client will submit txes out of order
 disableNonceCheck: true

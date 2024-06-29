@@ -8,7 +8,7 @@ import * as yaml from 'js-yaml';
 
 import { VerifierServer } from './verifierService';
 import { DummyStorageServer } from './dummyStorageService';
-import { IVerifierServer, VerifierService, VerifierClient, TransactionRequest, TransactionReply, StorageNodeService, VerifierStorageService, grpc } from '@rainblock/protocol'
+import { IVerifierServer, VerifierService, VerifierClient, TransactionRequest, TransactionReply, StorageNodeService, VerifierStorageService, grpc } from '@rainblock/protocol';
 import { BlockGenerator } from './blockGenerator';
 import { ConfigurationFile } from './configFile';
 import { RlpDecoderTransform, RlpEncode, RlpDecode, RlpList } from 'rlp-stream/build/src/rlp-stream';
@@ -40,7 +40,7 @@ program.version('1').description('The rainblock verifier server')
     .option('--beneficiary <address>', 'The <address> of the beneficiary. If set, overrides any beneficary set in the config.', program.STRING)
     .option('--wait', 'Wait to connect to all verifiers before generating blocks', program.BOOLEAN)
     .action(async (a, o, l) => {
-        let config = yaml.safeLoad(await fs.promises.readFile(o['config'], "utf8")) as ConfigurationFile;
+        const config = yaml.safeLoad(await fs.promises.readFile(o['config'], "utf8")) as ConfigurationFile;
 
         if (o['beneficiary']) {
             config.beneficiary = o['beneficiary'];
@@ -168,7 +168,7 @@ program.command('test-transaction-list', 'Send a list of test transactions')
     
             let promises = [];
             const start = process.hrtime.bigint();
-            let i = 0;
+            const i = 0;
             for await (const tx of decoder) {
                 request.setTransaction(RlpEncode(tx));
                 const promise = new Promise((resolve, reject) => {
@@ -210,7 +210,7 @@ program.command('generate-genesis', 'Generate a genesis file and block with test
         const json : GethStateDump = {
             root: "",
             accounts: {}
-        }
+        };
         const map : { [private_key : string] : string} = {};
         l.info('Generating accounts');
         
@@ -282,7 +282,7 @@ program.command('generate-genesis', 'Generate a genesis file and block with test
         l.info(`Writing output files.`);
         await fs.promises.writeFile(o['block'], block);
         await fs.promises.writeFile(o['json'], JSON.stringify(json, null, 2), 'utf8');
-        await fs.promises.writeFile(o['map'], JSON.stringify(map, null, 2), 'utf8')
+        await fs.promises.writeFile(o['map'], JSON.stringify(map, null, 2), 'utf8');
     });
 
 program.command('generate-trace', 'Generate a transaction trace file using the parameters given')
@@ -307,55 +307,57 @@ program.command('generate-trace', 'Generate a transaction trace file using the p
             const toAccountNum = BigInt(Math.floor(Math.random() * o['toAccounts']) + 1); // random account between 1-toAccounts
             const fromAccountNum = BigInt(Math.floor(Math.random() * (o['fromAccountsEnd'] - o['fromAccountsStart'] + 1) + o['fromAccountsStart'])); // random account between fromAccountsStart - fromAccountsEnd
             
-            var to = await getPublicAddress(toAccountNum);
-            var value = BigInt(o['value']);
+            let to = await getPublicAddress(toAccountNum);
+            let value = BigInt(o['value']);
             
             const nonce = nonceMap.has(fromAccountNum) ? nonceMap.get(fromAccountNum)! + 1n : 0n;
             nonceMap.set(fromAccountNum, nonce); 
         
-            var txnData = Buffer.from([]);
+            let txnData = Buffer.from([]);
             if (o['contract']) {
                 switch(o['contract']) {
                     case "omg":
-                        var addr1 = to;
+                        let address1 = to;
                         value = 0n; // Txn value for this contract must be 0
 
                         const contractvalue = BigInt(Math.floor(Math.random() * 10000 + 1));
-                        var valueStr = contractvalue.toString(16);
+                        let valueStr = contractvalue.toString(16);
                         // Pad valueStr with zeroes
                         while (valueStr.length < 64) {
                             valueStr = '0' + valueStr;
                         }
-                        var addr1Str = addr1.toString(16);
+                        let address1Str = address1.toString(16);
                         // Pad with zeroes
-                        addr1Str = addr1Str.padStart(64, '0');
+                        address1Str = address1Str.padStart(64, '0');
 
-                        if (o['contractAddress'])
+                        if (o['contractAddress']) {
                             to = BigInt(o['contractAddress']);
+                        }
                         else {
                             // This is the Ethereum address of the OMGToken contract
                             to = 0xd26114cd6EE289AccF82350c8d8487fedB8A0C07n;
                         }
                         // This is how to construct the ABI call for the `transfer` function in
                         // the OMG contract, which consists of a target addr and a value
-                        txnData = Buffer.from('a9059cbb' + addr1Str + valueStr, 'hex');
+                        txnData = Buffer.from('a9059cbb' + address1Str + valueStr, 'hex');
                         console.log(txnData.toString('hex'));
                         break;
                     case "bittrex":
                         value = BigInt(Math.floor(Math.random() * 10000 + 1));
-                        var addr1 = to;
+                        const addr1 = to;
                         const anotherAddr = BigInt(Math.floor(Math.random() * (o['fromAccountsEnd'] - o['fromAccountsStart'] + 1) + o['fromAccountsStart']));
-                        var addr2 = await getPublicAddress(anotherAddr);
+                        const addr2 = await getPublicAddress(anotherAddr);
 
-                        var addr1Str = addr1.toString(16);
+                        let addr1Str = addr1.toString(16);
                         // Pad with zeroes
                         addr1Str = addr1Str.padStart(64, '0');
-                        var addr2Str = addr2.toString(16);
+                        let addr2Str = addr2.toString(16);
                         // Pad with zeroes
                         addr2Str = addr2Str.padStart(64, '0');
 
-                        if (o['contractAddress'])
+                        if (o['contractAddress']) {
                             to = BigInt(o['contractAddress']);
+                        }
                         else {
                             // This is the Ethereum address of the BittrexToken contract
                             to = 0xE94b04a0FeD112f3664e45adb2B8915693dD5FF3n;
@@ -374,15 +376,15 @@ program.command('generate-trace', 'Generate a transaction trace file using the p
                 }
             }
 
-            let transaction : EthereumTransaction  = {
+            const transaction : EthereumTransaction  = {
                 gasLimit: BigInt(o['gasLimit']),
                 to,
                 data: txnData,
                 nonce,
                 gasPrice: BigInt(o['gasPrice']),
-                value: value,
+                value,
                 from: 0n // Discarded
-            }
+            };
             
             const signedTx = signTransaction(transaction, fromAccountNum, o['chain']);
             const rlp = RlpEncode(signedTx);
@@ -423,7 +425,7 @@ program.command('submit-tx', 'Submit a transaction using parameters given.')
         // Sign the transaction and generate the binary
         const signedTransaction = signTransaction(transaction, toBigIntBE(Buffer.from(keyPadded, 'hex')), o['chain']);
         const txBinary = RlpEncode(signedTransaction);
-        let proof = [];
+        const proof = [];
 
         // Generate the proof (for simple tx only)
         if (o['proof']) {
@@ -452,7 +454,7 @@ program.command('submit-tx', 'Submit a transaction using parameters given.')
                     putCanDelete: false}));
                 const fullBytes = proofs.reduce((p, c, i) => p + c.length, 0);
                 l.debug(`Proofs total size: ${fullBytes}`);
-                const hashes : bigint[] = [];
+                const hashes : Array<bigint> = [];
                 const reduced = [];
                 for (const proof of proofs) {
                     const hash = hashAsBigInt(HashType.KECCAK256, proof);
@@ -494,7 +496,7 @@ program.command('split-state', 'Split a JSON file into multiple states per shard
             shards[i] = {
                 root: "",
                 accounts : {}
-            }
+            };
         }
         for await (const data of pipeline) {
             const account = data.value;
@@ -509,7 +511,7 @@ program.command('split-state', 'Split a JSON file into multiple states per shard
                 root: account.root,
                 code: account.code,
                 storage: account.storage
-            }
+            };
             if (i % 10000 === 0) {
                 console.log(`Imported ${i} accounts`);
             }
@@ -519,7 +521,7 @@ program.command('split-state', 'Split a JSON file into multiple states per shard
             await fs.promises.writeFile(`shard.${i}.json`, JSON.stringify(shards[i]));
             console.log(`Wrote shard ${i}`);
         }
-    })
+    });
 
 
 program.command('proof-size', 'Calculate the sizes of proofs using varying parameters.')
@@ -564,7 +566,7 @@ program.command('proof-size', 'Calculate the sizes of proofs using varying param
             for (let depth = 10; depth >= 0; depth--) {
                 const depthData : any = {};
                 
-                const sliced = converted.map(m => m.length > depth ? m.slice(depth) : [m[m.length - 1]]) // preserve the last proof
+                const sliced = converted.map(m => m.length > depth ? m.slice(depth) : [m[m.length - 1]]); // preserve the last proof
 
                 // for 2-ADDRESS_COUNT...
                 for (let totalAccounts = o['addressStart']; totalAccounts < o['addressCount'] + 1; o['multiply'] ? totalAccounts *= 10 : totalAccounts++) {
@@ -586,7 +588,7 @@ program.command('proof-size', 'Calculate the sizes of proofs using varying param
                     callData.prunedBytes = fullBytes;
 
                     l.debug(`${accounts} ${depth} ${totalAccounts} Proofs total size: pruned ${fullBytes} vs unpruned ${unprunedBytes} (${((1 - (fullBytes/unprunedBytes)) * 100).toFixed(2)}%)`);
-                    const hashes : bigint[] = [];
+                    const hashes : Array<bigint> = [];
                     const reduced = [];
                     for (const proof of proofs) {
                         const hash = hashAsBigInt(HashType.KECCAK256, proof);

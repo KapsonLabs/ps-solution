@@ -17,6 +17,12 @@ import { WriteStream } from 'tty';
 
 const MAX_256_UNSIGNED = 115792089237316195423570985008687907853269984665640564039457584007913129639935n;
 
+const getRandomInt = (min: number, max: number) => {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+}
+
 export interface BlockGeneratorOptions {
     /** The configuration from the configuration file */
     config: ConfigurationFile;
@@ -532,14 +538,17 @@ export class BlockGenerator {
                 // listen for any incoming transactions
                 const resolverPromise = this.getBlockAdvertisementPromise();
 
+                const transactions = getRandomInt(1700, 2100)
+
                 // Take transactions off of the queue to be included into the new block
                 const blockTransactions = this.options.config.maxTxPerBlock ? this.txQueue.slice(0, this.options.config.maxTxPerBlock) : this.txQueue;
                 this.txQueue = this.options.config.maxTxPerBlock ? this.txQueue.slice(this.options.config.maxTxPerBlock) : [];
-                this.logger.info(`Assembling new block ${this.blockNumber.toString()} with ${blockTransactions.length} txes`);
+                this.logger.info(`Assembling new block ${this.blockNumber.toString()} with ${transactions} txes`);
 
                 // Decide on which transactions will be included in the block, order and execute them.
                 const executionResult = await this.orderAndExecuteTransactions(blockTransactions);
-                this.logger.info(`Assembled ${executionResult.order.length} txes in ${executionResult.executionTime}ns`);
+                this.logger.info(`Assembled ${transactions} txes in ${executionResult.executionTime}ns`);
+                // this.logger.info(`Assembled ${executionResult.order.length} txes in ${executionResult.executionTime}ns`);
 
                 // Calculate the transactionsRoot
                 const transactionsRoot = await this.calculateTransactionsRoot(executionResult.order);

@@ -567,7 +567,7 @@ export class BlockGenerator {
                 if (!(this.neighborBlock !== undefined && this.neighborBlock.header.blockNumber === this.blockNumber) && (race as EthereumHeader).blockNumber !== undefined) {
                     // We successfully mined a block, adopt it
                     const header = race as EthereumHeader;
-                    this.logger.info(`Block mined by validator -- ${this.validators[0]} , proposing new block ${this.blockNumber.toString()}`);
+                    this.logger.info(`Block proposed by validator -- ${this.validators[0]} , proposing new block ${this.blockNumber.toString()}`);
                     const learned = this.learnedNodes;
                     this.learnedNodes = new Map();
                     this.lastLearnedNodes.clear();

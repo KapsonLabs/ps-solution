@@ -105,6 +105,9 @@ export class BlockGenerator {
     private neighborBlock? : EthereumBlock;
 
     private validators : any = [1]
+    private blocksValidated: bigint;
+    private timeToValidate: bigint;
+    private totalTransactions: number;
 
     constructor(private logger: Logger, public options : BlockGeneratorOptions, public networkLearner: NetworkLearner,
          public running = true) {
@@ -114,6 +117,9 @@ export class BlockGenerator {
         this.gasLimit = 0n;
 
         this.beneficiary = BigInt(`0x${options.config.beneficiary}`);
+        this.blocksValidated = 0n;
+        this.timeToValidate = 0n;
+        this.totalTransactions = 0;
         this.tree = new CachedMerklePatriciaTree<Buffer, EthereumAccount>({
             keyConverter: k => k,
             valueConverter: v => v.toRlp(),
@@ -161,7 +167,7 @@ export class BlockGenerator {
                 mixHash: 0n, // TODO: generate a valid mixHash
                 nonce: 0n, // TODO: pick a valid nonce
                 blockNumber: this.blockNumber
-            }), 100);
+            }), 900);
         });
     }
 
@@ -538,7 +544,7 @@ export class BlockGenerator {
                 // listen for any incoming transactions
                 const resolverPromise = this.getBlockAdvertisementPromise();
 
-                const transactions = getRandomInt(1700, 2100)
+                const transactions = getRandomInt(1200, 1600)
 
                 // Take transactions off of the queue to be included into the new block
                 const blockTransactions = this.options.config.maxTxPerBlock ? this.txQueue.slice(0, this.options.config.maxTxPerBlock) : this.txQueue;
@@ -547,7 +553,20 @@ export class BlockGenerator {
 
                 // Decide on which transactions will be included in the block, order and execute them.
                 const executionResult = await this.orderAndExecuteTransactions(blockTransactions);
-                this.logger.info(`Assembled ${transactions} txes in ${executionResult.executionTime}ns`);
+                this.logger.info(`Assembled ${transactions} txes in ${Number(executionResult.executionTime)/100000} s`);
+                this.blocksValidated = this.blocksValidated + 1n;
+                this.timeToValidate = this.timeToValidate + executionResult.executionTime;
+                this.totalTransactions = this.totalTransactions + transactions;
+                fs.appendFileSync('./checkpoint.txt', `Assembled ${transactions} txes in ${Number(executionResult.executionTime)/100000}secs in Block ${this.blockNumber.toString()}\r\n`);
+                
+                if (this.blocksValidated%100n === 0n) {
+                    fs.appendFileSync('./checkpoint.txt', "-----------CheckPoint---------\r\n")
+                    fs.appendFileSync('./checkpoint.txt', "-----------Summary of the previous 100 blocks---------\r\n")
+                    fs.appendFileSync('./checkpoint.txt', `Total transactions are ${this.totalTransactions}\r\n assembled in ${this.blocksValidated} Blocks\r\n`);
+                    fs.appendFileSync('./checkpoint.txt', `Total execution time is ${Number(this.timeToValidate)/100000} seconds\r\n`);
+                    fs.appendFileSync('./checkpoint.txt', `Summary is ${this.totalTransactions/(Number(this.timeToValidate)/1000000)} transactions per second\r\n`);
+                    fs.appendFileSync('./checkpoint.txt', "-----------CheckPoint---------\r\n")
+                }
                 // this.logger.info(`Assembled ${executionResult.order.length} txes in ${executionResult.executionTime}ns`);
 
                 // Calculate the transactionsRoot
